@@ -1,18 +1,52 @@
 <script setup>
 import { ref } from "vue";
+
 const ticker = ref("");
 const tickers = ref([]);
+const graph = ref([]);
 function newTicker() {
-  const newTicker = {
+  const currentTicker = ref({
     name: ticker.value,
     price: " - ",
-  };
-  tickers.value.push(newTicker);
+  });
+  tickers.value.push(currentTicker);
+  console.log(currentTicker.value.price);
+  setInterval(async () => {
+    const f = await fetch(
+      `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.value.name}&tsyms=USD&api_key935a739f8e8fb902d649fdda4ab3f6f5492697eadbb74ab6ed6efc229417c500`
+    );
+    const data = await f.json();
+    console.log(data);
+    currentTicker.value.price =
+      data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(3);
+    if (sel.value?.name === currentTicker.value.name) {
+      graph.value.push(data.USD);
+    }
+  }, 5000);
   ticker.value = "";
 }
 
 function removeTicker(tickerToRemove) {
   tickers.value.splice(tickers.value.indexOf(tickerToRemove), 1);
+}
+
+const sel = ref(0);
+function select(ticker) {
+  sel.value = ticker.value;
+  graph.value = [];
+}
+
+function normalizeGraph() {
+  const maxValue = Math.max(...this.graph);
+  const minValue = Math.min(...this.graph);
+  return this.graph.map(
+    (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
+  );
+}
+
+function aaa() {
+  console.log(sel.value);
+  console.log(tickers.value.length);
 }
 </script>
 
@@ -20,6 +54,7 @@ function removeTicker(tickerToRemove) {
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
     <div class="container">
       <section>
+        <button @click="aaa">yf;vb</button>
         <div class="flex">
           <div class="max-w-xs">
             <label for="wallet" class="block text-sm font-medium text-gray-700"
@@ -28,7 +63,7 @@ function removeTicker(tickerToRemove) {
             <div class="mt-1 relative rounded-md shadow-md">
               <input
                 v-model="ticker"
-                @keydown.enter="newTicker"
+                @keydown.enter="newTicker()"
                 type="text"
                 name="wallet"
                 id="wallet"
@@ -88,21 +123,25 @@ function removeTicker(tickerToRemove) {
       <hr v-if="tickers.length" class="w-full border-t border-gray-600 my-4" />
       <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div
+          @click="select(t)"
           v-for="t in tickers"
           :key="t"
+          :class="{
+            'border-4': sel === t.value,
+          }"
           class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
         >
           <div class="px-4 py-5 sm:p-6 text-center">
             <dt class="text-sm font-medium text-gray-500 truncate">
-              {{ t.name }}
+              {{ t.value.name }} - USD
             </dt>
             <dd class="mt-1 text-3xl font-semibold text-gray-900">
-              {{ t.price }}
+              {{ t.value.price }}
             </dd>
           </div>
           <div class="w-full border-t border-gray-200"></div>
           <button
-            @click="removeTicker(t)"
+            @click.stop="removeTicker(t)"
             class="flex items-center justify-center font-medium w-full bg-gray-100 px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none"
           >
             <svg
@@ -122,17 +161,23 @@ function removeTicker(tickerToRemove) {
         </div>
       </dl>
       <hr v-if="tickers.length" class="w-full border-t border-gray-600 my-4" />
-      <section class="relative">
+      <section v-if="sel" class="relative">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-          VUE - USD
+          {{ sel.name }} - USD
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
-          <div class="bg-purple-800 border w-10 h-24"></div>
-          <div class="bg-purple-800 border w-10 h-32"></div>
-          <div class="bg-purple-800 border w-10 h-48"></div>
-          <div class="bg-purple-800 border w-10 h-16"></div>
+          <div
+            v-for="(bar, idx) in normalizeGraph()"
+            :key="idx"
+            :style="{ height: `${bar}%` }"
+            class="bg-purple-800 border w-10 h-24"
+          ></div>
         </div>
-        <button type="button" class="absolute top-0 right-0">
+        <button
+          @click="sel = null"
+          type="button"
+          class="absolute top-0 right-0"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
