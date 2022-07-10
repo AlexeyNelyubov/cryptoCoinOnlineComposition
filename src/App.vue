@@ -204,7 +204,3 @@ function aaa() {
     </div>
   </div>
 </template>
-
-<style>
-@import "./assets/base.css";
-</style>
