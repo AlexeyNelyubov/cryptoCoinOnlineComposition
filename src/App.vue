@@ -1,22 +1,51 @@
 <script setup>
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
+
+const dataCoinList = ref([]);
+
+onMounted(() => {
+  async function getCoinList() {
+    const fr = await fetch(
+      `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
+    );
+    const data = await fr.json();
+    return data;
+  }
+  getCoinList().then((data) => {
+    dataCoinList.value = data.Data;
+  });
+});
 
 const ticker = ref("");
+const tickerShow = ref([]);
+const tickerCompare = ref(false);
+
+function autopComplite() {
+  tickerCompare.value = false;
+  tickerShow.value = [];
+  let i = 1;
+  for (let key in dataCoinList.value) {
+    if ((i<=4) & dataCoinList.value[key].Symbol.includes(ticker.value.toUpperCase())) {
+      tickerShow.value.push(dataCoinList.value[key].Symbol);
+      i++;
+    }
+  }
+}
+
 const tickers = ref([]);
 const graph = ref([]);
-function newTicker() {
-  const currentTicker = ref({
-    name: ticker.value,
+
+function callback() {
+const currentTicker = ref({
+    name: ticker.value.toUpperCase(),
     price: " - ",
   });
   tickers.value.push(currentTicker);
-  console.log(currentTicker.value.price);
   setInterval(async () => {
     const f = await fetch(
       `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.value.name}&tsyms=USD&api_key935a739f8e8fb902d649fdda4ab3f6f5492697eadbb74ab6ed6efc229417c500`
     );
     const data = await f.json();
-    console.log(data);
     currentTicker.value.price =
       data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(3);
     if (sel.value?.name === currentTicker.value.name) {
@@ -24,6 +53,29 @@ function newTicker() {
     }
   }, 5000);
   ticker.value = "";
+}
+
+function newTicker() {
+  tickerCompare.value = false;
+  if (tickers.value.length){
+    for (let i of tickers.value){
+      if ( ticker.value.toUpperCase() === i.value.name){
+        tickerCompare.value = true;
+        break;
+      }
+    }
+      if(!tickerCompare.value) {
+        callback();
+    };  
+  }
+  else{
+    callback();
+  }
+}
+
+function addAutocomplite(tic) {
+  ticker.value = tic;
+  newTicker();
 }
 
 function removeTicker(tickerToRemove) {
@@ -43,27 +95,24 @@ function normalizeGraph() {
     (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
   );
 }
-
-function aaa() {
-  console.log(sel.value);
-  console.log(tickers.value.length);
-}
 </script>
 
 <template>
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
     <div class="container">
       <section>
-        <button @click="aaa">yf;vb</button>
         <div class="flex">
-          <div class="max-w-xs">
+          <div 
+           class="max-w-xs">
             <label for="wallet" class="block text-sm font-medium text-gray-700"
               >Тикер
             </label>
-            <div class="mt-1 relative rounded-md shadow-md">
+            <div 
+            class="mt-1 relative rounded-md shadow-md">
               <input
                 v-model="ticker"
                 @keydown.enter="newTicker()"
+                @input="autopComplite()"
                 type="text"
                 name="wallet"
                 id="wallet"
@@ -72,30 +121,21 @@ function aaa() {
               />
             </div>
             <div
+              v-if="ticker"
               class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
             >
               <span
+              @click="addAutocomplite(tshw)"
+              v-for="tshw in tickerShow"
+              :key="tshw"
                 class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
               >
-                BTC
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                DOGE
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                BCH
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                CHD
+                {{ tshw }}
               </span>
             </div>
-            <div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+            <div 
+            v-if="tickerCompare"
+            class="text-sm text-red-600">Такой тикер уже добавлен</div>
           </div>
         </div>
         <button
@@ -119,10 +159,9 @@ function aaa() {
           Добавить
         </button>
       </section>
-
       <hr v-if="tickers.length" class="w-full border-t border-gray-600 my-4" />
       <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <div
+        <div 
           @click="select(t)"
           v-for="t in tickers"
           :key="t"
