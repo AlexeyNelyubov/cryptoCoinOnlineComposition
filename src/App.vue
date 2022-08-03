@@ -1,7 +1,16 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 
 const dataCoinList = ref([]);
+const tickers = ref([]);
+
+const tickerData = localStorage.getItem ('cryptonomicon-list');
+if (tickerData) {
+  tickers.value = JSON.parse(tickerData);
+}
+tickers.value.forEach((elem)=>{
+subcribeToUpdate(elem.name);
+})
 
 onMounted(() => {
   async function getCoinList() {
@@ -32,26 +41,48 @@ function autopComplite() {
   }
 }
 
-const tickers = ref([]);
 const graph = ref([]);
 
+function subcribeToUpdate(tickerName) {
+  const mySetIntervalID = setInterval(async () => {
+  if (tickers.value.length){
+      let i=0;
+      tickers.value.forEach((elem)=>{
+        if (elem.name === tickerName){
+          i++;
+        }
+      });
+      if (i ===0 ) {
+        clearInterval(mySetIntervalID);
+        return;
+      }
+    }
+    else{
+      clearInterval(mySetIntervalID);
+      return;
+    };
+    const f = await fetch(
+      `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key935a739f8e8fb902d649fdda4ab3f6f5492697eadbb74ab6ed6efc229417c500`
+    );
+    const data = await f.json();
+    console.log(data);
+    console.log(tickerName);
+    tickers.value.find(t => t.name === tickerName).price =
+      data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(3);
+    if (sel.value?.name === tickerName) {
+      graph.value.push(data.USD);
+    }
+  }, 5000);
+}
+
 function callback() {
-const currentTicker = ref({
+const currentTicker = reactive ({
     name: ticker.value.toUpperCase(),
     price: " - ",
   });
   tickers.value.push(currentTicker);
-  setInterval(async () => {
-    const f = await fetch(
-      `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.value.name}&tsyms=USD&api_key935a739f8e8fb902d649fdda4ab3f6f5492697eadbb74ab6ed6efc229417c500`
-    );
-    const data = await f.json();
-    currentTicker.value.price =
-      data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(3);
-    if (sel.value?.name === currentTicker.value.name) {
-      graph.value.push(data.USD);
-    }
-  }, 5000);
+  subcribeToUpdate(currentTicker.name);
+  localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
   ticker.value = "";
 }
 
@@ -59,7 +90,7 @@ function newTicker() {
   tickerCompare.value = false;
   if (tickers.value.length){
     for (let i of tickers.value){
-      if ( ticker.value.toUpperCase() === i.value.name){
+      if ( ticker.value.toUpperCase() === i.name){
         tickerCompare.value = true;
         break;
       }
@@ -80,6 +111,11 @@ function addAutocomplite(tic) {
 
 function removeTicker(tickerToRemove) {
   tickers.value.splice(tickers.value.indexOf(tickerToRemove), 1);
+  console.log(tickers.value);
+  localStorage.clear();
+  if (tickers.value.length){
+   localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
+  }
 }
 
 const sel = ref(0);
@@ -172,10 +208,10 @@ function normalizeGraph() {
         >
           <div class="px-4 py-5 sm:p-6 text-center">
             <dt class="text-sm font-medium text-gray-500 truncate">
-              {{ t.value.name }} - USD
+              {{ t.name }} - USD
             </dt>
             <dd class="mt-1 text-3xl font-semibold text-gray-900">
-              {{ t.value.price }}
+              {{ t.price }}
             </dd>
           </div>
           <div class="w-full border-t border-gray-200"></div>
