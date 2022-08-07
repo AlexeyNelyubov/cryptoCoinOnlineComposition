@@ -1,5 +1,19 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, reactive, ref, watch, watchEffect } from "vue";
+
+const tickerFilter = ref("");
+const page=ref(1);
+
+ const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
+
+    if(windowData.tickerFilter) {
+      tickerFilter.value = windowData.tickerFilter;
+    };
+
+    if(windowData.page) {
+      page.value = windowData.page;
+    };
+
 
 const dataCoinList = ref([]);
 const tickers = ref([]);
@@ -10,7 +24,7 @@ if (tickerData) {
 }
 tickers.value.forEach((elem)=>{
 subcribeToUpdate(elem.name);
-})
+});
 
 onMounted(() => {
   async function getCoinList() {
@@ -39,7 +53,7 @@ function autopComplite() {
       i++;
     }
   }
-}
+};
 
 const graph = ref([]);
 
@@ -73,7 +87,7 @@ function subcribeToUpdate(tickerName) {
       graph.value.push(data.USD);
     }
   }, 5000);
-}
+};
 
 function callback() {
 const currentTicker = reactive ({
@@ -84,7 +98,7 @@ const currentTicker = reactive ({
   subcribeToUpdate(currentTicker.name);
   localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
   ticker.value = "";
-}
+};
 
 function newTicker() {
   tickerCompare.value = false;
@@ -102,27 +116,41 @@ function newTicker() {
   else{
     callback();
   }
-}
+};
 
 function addAutocomplite(tic) {
   ticker.value = tic;
   newTicker();
-}
+};
+
+const hasNextPage=ref(true);
+
+function filteredTicker() {
+  const start = (page.value-1)*6;
+  const end = page.value*6;
+  const filteredTicker = tickers.value.filter((elem) => elem.name.includes(tickerFilter.value.toUpperCase()));
+  if (filteredTicker.length>end) {
+    hasNextPage.value = true;
+  }
+  else {
+    hasNextPage.value = false;
+  }
+  return filteredTicker.slice(start,end);
+};
 
 function removeTicker(tickerToRemove) {
   tickers.value.splice(tickers.value.indexOf(tickerToRemove), 1);
-  console.log(tickers.value);
   localStorage.clear();
   if (tickers.value.length){
    localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
   }
-}
+};
 
 const sel = ref(0);
 function select(ticker) {
   sel.value = ticker.value;
   graph.value = [];
-}
+};
 
 function normalizeGraph() {
   const maxValue = Math.max(...this.graph);
@@ -130,7 +158,15 @@ function normalizeGraph() {
   return this.graph.map(
     (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
   );
-}
+};
+
+watchEffect (() => {
+    window.history.pushState(
+      null, 
+      document.title, 
+      `${window.location.pathname}?tickerFilter=${tickerFilter.value}&page=${page.value}`
+      );
+});
 </script>
 
 <template>
@@ -195,11 +231,36 @@ function normalizeGraph() {
           Добавить
         </button>
       </section>
+      <div v-if="tickers.length">
+        <hr class="w-full border-t border-gray-600 my-4" />
+        <button 
+        v-if="page>1"
+        @click="page=Number(page)-1"
+        class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        >
+        Назад
+        </button>
+        <button 
+        v-if="hasNextPage"
+        @click="page=Number(page)+1"
+        class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        >
+        Вперёд
+        </button>
+        <div> Фильтр
+          <input 
+            v-model="tickerFilter"
+            @input="page=1"
+          />
+        </div>
+      </div>
+      
+
       <hr v-if="tickers.length" class="w-full border-t border-gray-600 my-4" />
       <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div 
           @click="select(t)"
-          v-for="t in tickers"
+          v-for="t in filteredTicker()"
           :key="t"
           :class="{
             'border-4': sel === t.value,
