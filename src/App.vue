@@ -1,22 +1,23 @@
 <script setup>
+import { computed } from "@vue/reactivity";
 import { onMounted, reactive, ref, watch, watchEffect } from "vue";
 
-const tickerFilter = ref("");
-const page=ref(1);
 
- const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
+//загрузка данных из URL, чтобы сохранить состояние фильтра при перезагрузке страницы
+const page=ref(1); //номер страницы при пагинации
 
-    if(windowData.tickerFilter) {
-      tickerFilter.value = windowData.tickerFilter;
-    };
+const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
+if(windowData.tickerFilter) {
+  tickerFilter.value = windowData.tickerFilter;
+};
 
-    if(windowData.page) {
-      page.value = windowData.page;
-    };
+if(windowData.page) {
+  page.value = windowData.page;
+};
 
 
-const dataCoinList = ref([]);
-const tickers = ref([]);
+//загрузка данных из localStorage, чтобы сохранить состояние введённых тикеров при перезагрузке страницы
+const tickers = ref([]);//массив тикеров
 
 const tickerData = localStorage.getItem ('cryptonomicon-list');
 if (tickerData) {
@@ -26,7 +27,9 @@ tickers.value.forEach((elem)=>{
 subcribeToUpdate(elem.name);
 });
 
-onMounted(() => {
+
+//получение файла сосписком монет, для автокомплита при вводе тикера
+onMounted(() => {  
   async function getCoinList() {
     const fr = await fetch(
       `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
@@ -39,24 +42,44 @@ onMounted(() => {
   });
 });
 
-const ticker = ref("");
-const tickerShow = ref([]);
-const tickerCompare = ref(false);
 
-function autopComplite() {
+//показ введённого тикера на странице и проверка на совпадение (вывод надписи "Такой тикер уже добавлен")
+const ticker = ref("");//вводимый тикер
+const tickerCompare = ref(false);//для сравнения есть ли уже такой тикер или нет ("Такой тикер уже добавлен")
+
+function add() {
   tickerCompare.value = false;
-  tickerShow.value = [];
-  let i = 1;
-  for (let key in dataCoinList.value) {
-    if ((i<=4) & dataCoinList.value[key].Symbol.includes(ticker.value.toUpperCase())) {
-      tickerShow.value.push(dataCoinList.value[key].Symbol);
-      i++;
+  if (tickers.value.length){
+    for (let i of tickers.value){
+      if ( ticker.value.toUpperCase() === i.name){
+        tickerCompare.value = true;
+        break;
+      }
     }
+      if(!tickerCompare.value) {
+        callback();
+    };  
+  }
+  else{
+    callback();
   }
 };
 
-const graph = ref([]);
 
+//запись введённого тикера(+полученная цена) в массив
+function callback() {
+const currentTicker = reactive ({
+    name: ticker.value.toUpperCase(),
+    price: " - ",
+  });
+  tickers.value.push(currentTicker);
+  subcribeToUpdate(currentTicker.name);
+  localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
+  ticker.value = "";
+};
+
+
+//обновление цены тикеров(запрос на серевер)
 function subcribeToUpdate(tickerName) {
   const mySetIntervalID = setInterval(async () => {
   if (tickers.value.length){
@@ -83,89 +106,113 @@ function subcribeToUpdate(tickerName) {
     console.log(tickerName);
     tickers.value.find(t => t.name === tickerName).price =
       data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(3);
-    if (sel.value?.name === tickerName) {
+    if (selectedTicker.value?.name === tickerName) {
       graph.value.push(data.USD);
     }
   }, 5000);
 };
 
-function callback() {
-const currentTicker = reactive ({
-    name: ticker.value.toUpperCase(),
-    price: " - ",
-  });
-  tickers.value.push(currentTicker);
-  subcribeToUpdate(currentTicker.name);
-  localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
-  ticker.value = "";
-};
 
-function newTicker() {
+//получение автокомплита(списка из 4-х монет при вводе тикера)
+const dataCoinList = ref([]); //массив для вывода 4х монет при автокомплите
+const tickerShow = ref([]);// массив списка из 4-х монет при вводе тикера
+
+function autopComplite() {
   tickerCompare.value = false;
-  if (tickers.value.length){
-    for (let i of tickers.value){
-      if ( ticker.value.toUpperCase() === i.name){
-        tickerCompare.value = true;
-        break;
-      }
+  tickerShow.value = [];
+  let i = 1;
+  for (let key in dataCoinList.value) {
+    if ((i<=4) & dataCoinList.value[key].Symbol.includes(ticker.value.toUpperCase())) {
+      tickerShow.value.push(dataCoinList.value[key].Symbol);
+      i++;
     }
-      if(!tickerCompare.value) {
-        callback();
-    };  
-  }
-  else{
-    callback();
   }
 };
 
+
+//ввод тикера по нажатию на иконку в автокомплите
 function addAutocomplite(tic) {
   ticker.value = tic;
-  newTicker();
+  add();
 };
 
-const hasNextPage=ref(true);
 
-function filteredTicker() {
-  const start = (page.value-1)*6;
-  const end = page.value*6;
-  const filteredTicker = tickers.value.filter((elem) => elem.name.includes(tickerFilter.value.toUpperCase()));
-  if (filteredTicker.length>end) {
-    hasNextPage.value = true;
-  }
-  else {
-    hasNextPage.value = false;
-  }
-  return filteredTicker.slice(start,end);
-};
-
-function removeTicker(tickerToRemove) {
+//удаление тикера из списка
+function handleDelete(tickerToRemove) {
   tickers.value.splice(tickers.value.indexOf(tickerToRemove), 1);
+  if (selectedTicker.value === tickerToRemove) {
+    selectedTicker.value = null;
+  };
   localStorage.clear();
   if (tickers.value.length){
    localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
   }
 };
 
-const sel = ref(0);
+
+//выбор тикера для построения графика
+
+const selectedTicker = ref();//выбор тикера для показа графика
 function select(ticker) {
-  sel.value = ticker.value;
-  graph.value = [];
+  selectedTicker.value = ticker;
 };
 
-function normalizeGraph() {
-  const maxValue = Math.max(...this.graph);
-  const minValue = Math.min(...this.graph);
-  return this.graph.map(
+
+//изменеие графика при выборе другого тикера
+watch (selectedTicker, () => {
+    graph.value = [];
+});
+
+
+//пересчёт цены в % для корректного отогбражения графика
+const graph = ref([]);//бар на графике
+
+const normalizedGraph = computed(()=> {
+const maxValue = Math.max(...graph.value);
+  const minValue = Math.min(...graph.value);
+  if (maxValue === minValue) {
+    return graph.value.map (()=>50)
+  };
+  return graph.value.map(
     (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
   );
-};
+});
 
+
+//вывод тикеров при изменении фильтра
+const tickerFilter = ref(""); //для получения фильтра(инпут)
+
+const filteredTicker = computed (()=> tickers.value.filter((elem) => elem.name.includes(tickerFilter.value.toUpperCase())));
+
+
+//определение индекса тикера(от какого до кагого) в массиве tickers для пагинации
+
+const startIndex = computed( () => (page.value-1)*6);
+const endtIndex = computed( () =>  page.value*6);
+
+//пагинация (разбивка выводимых тикеров постранично(6 шт. на одной странице))
+const paginatededTicker = computed (()=> filteredTicker.value.slice(startIndex.value,endtIndex.value));
+
+
+//определение показывать кнопку "Вперёд" или нет
+const hasNextPage = computed(() => filteredTicker.value.length > endtIndex.value );
+
+
+//сохранение состояния(и изменение URL) при переходе на другую страницу или вводу фильтра, чтобы при перезагрузке остаться в этом же месте
 watchEffect (() => {
     window.history.pushState(
       null, 
       document.title, 
       `${window.location.pathname}?tickerFilter=${tickerFilter.value}&page=${page.value}`
       );
+});
+
+
+//переход на предыдущую страницу при удалении всех элементов на текущей странице
+watchEffect (() => {
+    if (paginatededTicker.value.length ===0 && page.value>1){
+      page.value -=1;
+    }
 });
 </script>
 
@@ -183,7 +230,7 @@ watchEffect (() => {
             class="mt-1 relative rounded-md shadow-md">
               <input
                 v-model="ticker"
-                @keydown.enter="newTicker()"
+                @keydown.enter="add()"
                 @input="autopComplite()"
                 type="text"
                 name="wallet"
@@ -211,7 +258,7 @@ watchEffect (() => {
           </div>
         </div>
         <button
-          @click="newTicker"
+          @click="add()"
           type="button"
           class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
         >
@@ -260,10 +307,10 @@ watchEffect (() => {
       <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
         <div 
           @click="select(t)"
-          v-for="t in filteredTicker()"
+          v-for="t in paginatededTicker"
           :key="t"
           :class="{
-            'border-4': sel === t.value,
+            'border-4': selectedTicker === t,
           }"
           class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
         >
@@ -277,7 +324,7 @@ watchEffect (() => {
           </div>
           <div class="w-full border-t border-gray-200"></div>
           <button
-            @click.stop="removeTicker(t)"
+            @click.stop="handleDelete(t)"
             class="flex items-center justify-center font-medium w-full bg-gray-100 px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none"
           >
             <svg
@@ -297,20 +344,20 @@ watchEffect (() => {
         </div>
       </dl>
       <hr v-if="tickers.length" class="w-full border-t border-gray-600 my-4" />
-      <section v-if="sel" class="relative">
+      <section v-if="selectedTicker" class="relative">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-          {{ sel.name }} - USD
+          {{ selectedTicker.name }} - USD
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
-            v-for="(bar, idx) in normalizeGraph()"
+            v-for="(bar, idx) in normalizedGraph"
             :key="idx"
             :style="{ height: `${bar}%` }"
             class="bg-purple-800 border w-10 h-24"
           ></div>
         </div>
         <button
-          @click="sel = null"
+          @click="selectedTicker = null"
           type="button"
           class="absolute top-0 right-0"
         >
