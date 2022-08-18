@@ -1,50 +1,32 @@
 <script setup>
 import { computed } from "@vue/reactivity";
 import { onMounted, reactive, ref, watch, watchEffect } from "vue";
+import { loadTicker } from "./api";
 
-
-//загрузка данных из URL, чтобы сохранить состояние фильтра при перезагрузке страницы
-const page=ref(1); //номер страницы при пагинации
 
 const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
-if(windowData.tickerFilter) {
-  tickerFilter.value = windowData.tickerFilter;
-};
 
-if(windowData.page) {
-  page.value = windowData.page;
-};
+                                                            //ПОКАЗ ВВОДИМЫХ МОНЕТ
 
-
-//загрузка данных из localStorage, чтобы сохранить состояние введённых тикеров при перезагрузке страницы
+//показ на странице введённого тикера(+полученная цена)
+const ticker = ref("");//вводимый тикер
 const tickers = ref([]);//массив тикеров
 
-const tickerData = localStorage.getItem ('cryptonomicon-list');
-if (tickerData) {
-  tickers.value = JSON.parse(tickerData);
-}
-tickers.value.forEach((elem)=>{
-subcribeToUpdate(elem.name);
-});
-
-
-//получение файла сосписком монет, для автокомплита при вводе тикера
-onMounted(() => {  
-  async function getCoinList() {
-    const fr = await fetch(
-      `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
-    );
-    const data = await fr.json();
-    return data;
-  }
-  getCoinList().then((data) => {
-    dataCoinList.value = data.Data;
+function callback() {
+const currentTicker = reactive ({
+    name: ticker.value.toUpperCase(),
+    price: " - ",
   });
-});
+  
+  tickers.value = [...tickers.value, currentTicker];
+  //subcribeToUpdate(currentTicker.name);
+  //console.log((tickers.value.map( item => item.name)).join(','));
+  updateTicker();
+  ticker.value = "";
+};
 
 
-//показ введённого тикера на странице и проверка на совпадение (вывод надписи "Такой тикер уже добавлен")
-const ticker = ref("");//вводимый тикер
+//Проверка на совпадение (вывод надписи "Такой тикер уже добавлен")
 const tickerCompare = ref(false);//для сравнения есть ли уже такой тикер или нет ("Такой тикер уже добавлен")
 
 function add() {
@@ -65,58 +47,79 @@ function add() {
   }
 };
 
-
-//запись введённого тикера(+полученная цена) в массив
-function callback() {
-const currentTicker = reactive ({
-    name: ticker.value.toUpperCase(),
-    price: " - ",
-  });
-  tickers.value.push(currentTicker);
-  subcribeToUpdate(currentTicker.name);
-  localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
-  ticker.value = "";
+//удаление тикера из списка
+function handleDelete(tickerToRemove) {
+  tickers.value = tickers.value.filter( t => t != tickerToRemove); 
+  //tickers.value.splice(tickers.value.indexOf(tickerToRemove), 1);
+  if (selectedTicker.value === tickerToRemove) {
+    selectedTicker.value = null;
+  };
 };
-
 
 //обновление цены тикеров(запрос на серевер)
-function subcribeToUpdate(tickerName) {
-  const mySetIntervalID = setInterval(async () => {
-  if (tickers.value.length){
-      let i=0;
-      tickers.value.forEach((elem)=>{
-        if (elem.name === tickerName){
-          i++;
-        }
-      });
-      if (i ===0 ) {
-        clearInterval(mySetIntervalID);
-        return;
+const selectedTicker = ref();//выбор тикера для показа графика
+const graph = ref([]);//бар на графике
+
+
+async function updateTicker () {
+  if (!tickers.value.length) {
+    return;
+  };
+  const exchangeData = await loadTicker(tickers.value.map ((t) => t.name));
+  console.log(exchangeData);
+  tickers.value.forEach ( t => {
+  const price = exchangeData[t.name.toUpperCase()];
+  if (price === "-") {
+        t.price = price;
       }
-    }
-    else{
-      clearInterval(mySetIntervalID);
-      return;
+      else {
+       t.price = price>1 ? price.toFixed(2) : price.toPrecision(2);
+      };
+
+  if (selectedTicker.value?.name === t.name) {
+        graph.value.push(price);
     };
-    const f = await fetch(
-      `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key935a739f8e8fb902d649fdda4ab3f6f5492697eadbb74ab6ed6efc229417c500`
-    );
-    const data = await f.json();
-    console.log(data);
-    console.log(tickerName);
-    tickers.value.find(t => t.name === tickerName).price =
-      data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(3);
-    if (selectedTicker.value?.name === tickerName) {
-      graph.value.push(data.USD);
-    }
-  }, 5000);
+  })
 };
+
+watch ( tickers, () => {
+  if (!tickers.value.length) {
+    localStorage.removeItem ('cryptonomicon-list');
+    return;
+  };
+  localStorage.setItem ('cryptonomicon-list', JSON.stringify(tickers.value));
+});
+
+//загрузка данных из localStorage, чтобы сохранить состояние введённых тикеров при перезагрузке страницы
+const tickerData = localStorage.getItem ('cryptonomicon-list');
+if (tickerData) {
+  tickers.value = JSON.parse(tickerData);
+};
+
+setInterval(updateTicker, 5000);
+
+
+                                                                      //АВТОКОМПЛИТ
+
+//получение файла сосписком монет, для автокомплита при вводе тикера
+const dataCoinList = ref([]); //массив для вывода 4х монет при автокомплите
+
+onMounted(() => {  
+  async function getCoinList() {
+    const fr = await fetch(
+      `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
+    );
+    const data = await fr.json();
+    return data;
+  }
+  getCoinList().then((data) => {
+    dataCoinList.value = data.Data;
+  });
+});
+const tickerShow = ref([]);// массив списка из 4-х монет при вводе тикера
 
 
 //получение автокомплита(списка из 4-х монет при вводе тикера)
-const dataCoinList = ref([]); //массив для вывода 4х монет при автокомплите
-const tickerShow = ref([]);// массив списка из 4-х монет при вводе тикера
-
 function autopComplite() {
   tickerCompare.value = false;
   tickerShow.value = [];
@@ -129,7 +132,6 @@ function autopComplite() {
   }
 };
 
-
 //ввод тикера по нажатию на иконку в автокомплите
 function addAutocomplite(tic) {
   ticker.value = tic;
@@ -137,36 +139,19 @@ function addAutocomplite(tic) {
 };
 
 
-//удаление тикера из списка
-function handleDelete(tickerToRemove) {
-  tickers.value.splice(tickers.value.indexOf(tickerToRemove), 1);
-  if (selectedTicker.value === tickerToRemove) {
-    selectedTicker.value = null;
-  };
-  localStorage.clear();
-  if (tickers.value.length){
-   localStorage.setItem ('cryptonomicon-list', JSON.stringify (tickers.value));
-  }
-};
-
+                                                                      //ГРАФИК
 
 //выбор тикера для построения графика
-
-const selectedTicker = ref();//выбор тикера для показа графика
 function select(ticker) {
   selectedTicker.value = ticker;
 };
-
 
 //изменеие графика при выборе другого тикера
 watch (selectedTicker, () => {
     graph.value = [];
 });
 
-
 //пересчёт цены в % для корректного отогбражения графика
-const graph = ref([]);//бар на графике
-
 const normalizedGraph = computed(()=> {
 const maxValue = Math.max(...graph.value);
   const minValue = Math.min(...graph.value);
@@ -178,14 +163,15 @@ const maxValue = Math.max(...graph.value);
   );
 });
 
+//ФИЛЬТР
 
 //вывод тикеров при изменении фильтра
 const tickerFilter = ref(""); //для получения фильтра(инпут)
 
 const filteredTicker = computed (()=> tickers.value.filter((elem) => elem.name.includes(tickerFilter.value.toUpperCase())));
 
-
 //определение индекса тикера(от какого до кагого) в массиве tickers для пагинации
+const page=ref(1); //номер страницы при пагинации
 
 const startIndex = computed( () => (page.value-1)*6);
 const endtIndex = computed( () =>  page.value*6);
@@ -193,10 +179,8 @@ const endtIndex = computed( () =>  page.value*6);
 //пагинация (разбивка выводимых тикеров постранично(6 шт. на одной странице))
 const paginatededTicker = computed (()=> filteredTicker.value.slice(startIndex.value,endtIndex.value));
 
-
 //определение показывать кнопку "Вперёд" или нет
 const hasNextPage = computed(() => filteredTicker.value.length > endtIndex.value );
-
 
 //сохранение состояния(и изменение URL) при переходе на другую страницу или вводу фильтра, чтобы при перезагрузке остаться в этом же месте
 watchEffect (() => {
@@ -207,13 +191,22 @@ watchEffect (() => {
       );
 });
 
-
 //переход на предыдущую страницу при удалении всех элементов на текущей странице
 watchEffect (() => {
     if (paginatededTicker.value.length ===0 && page.value>1){
       page.value -=1;
     }
 });
+
+//загрузка данных из URL, чтобы сохранить состояние фильтра при перезагрузке страницы
+if(windowData.tickerFilter) {
+  tickerFilter.value = windowData.tickerFilter;
+};
+
+if(windowData.page) {
+  page.value = windowData.page;
+};
+
 </script>
 
 <template>
