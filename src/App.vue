@@ -1,10 +1,15 @@
 <script setup>
 import { computed } from "@vue/reactivity";
 import { onMounted, reactive, ref, watch, watchEffect } from "vue";
-import { loadTicker } from "./api";
+// import { loadTicker } from "./api";
+import {subscribeToTicker} from "./api";
+import {unsubscribeFromTicker} from "./api";
 
 
-const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
+//const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
+//const q = Object.fromEntries(new URL (window.location).searchParams);
+//console.log(q);
+// console.log(windowData);
 
                                                             //ПОКАЗ ВВОДИМЫХ МОНЕТ
 
@@ -19,12 +24,23 @@ const currentTicker = reactive ({
   });
   
   tickers.value = [...tickers.value, currentTicker];
+  subscribeToTicker(currentTicker.name, (newPrice)=>{
+    updateTicker (currentTicker.name, newPrice);
+  });
   //subcribeToUpdate(currentTicker.name);
   //console.log((tickers.value.map( item => item.name)).join(','));
-  updateTicker();
+  //updateTicker();
   ticker.value = "";
 };
 
+function updateTicker (tickerName, price) {
+  tickers.value.filter(t => t.name === tickerName).forEach(t => {
+    t.price = price;
+    if (selectedTicker.value?.name === tickerName) {
+      graph.value.push (price);
+    };
+  });
+};
 
 //Проверка на совпадение (вывод надписи "Такой тикер уже добавлен")
 const tickerCompare = ref(false);//для сравнения есть ли уже такой тикер или нет ("Такой тикер уже добавлен")
@@ -50,6 +66,7 @@ function add() {
 //удаление тикера из списка
 function handleDelete(tickerToRemove) {
   tickers.value = tickers.value.filter( t => t != tickerToRemove); 
+  unsubscribeFromTicker(tickerToRemove.name);
   //tickers.value.splice(tickers.value.indexOf(tickerToRemove), 1);
   if (selectedTicker.value === tickerToRemove) {
     selectedTicker.value = null;
@@ -61,26 +78,26 @@ const selectedTicker = ref();//выбор тикера для показа гр�
 const graph = ref([]);//бар на графике
 
 
-async function updateTicker () {
-  if (!tickers.value.length) {
-    return;
-  };
-  const exchangeData = await loadTicker(tickers.value.map ((t) => t.name));
-  console.log(exchangeData);
-  tickers.value.forEach ( t => {
-  const price = exchangeData[t.name.toUpperCase()];
-  if (price === "-") {
-        t.price = price;
-      }
-      else {
-       t.price = price>1 ? price.toFixed(2) : price.toPrecision(2);
-      };
+// async function updateTicker () {
+//   if (!tickers.value.length) {
+//     return;
+//   };
+//   const exchangeData = await loadTicker(tickers.value.map ((t) => t.name));
+//   //console.log(exchangeData);
+//   tickers.value.forEach ( t => {
+//   const price = exchangeData[t.name.toUpperCase()];
+//   if (price === "-") {
+//         t.price = price;
+//       }
+//       else {
+//        t.price = price>1 ? price.toFixed(2) : price.toPrecision(2);
+//       };
 
-  if (selectedTicker.value?.name === t.name) {
-        graph.value.push(price);
-    };
-  })
-};
+//   if (selectedTicker.value?.name === t.name) {
+//         graph.value.push(price);
+//     };
+//   })
+// };
 
 watch ( tickers, () => {
   if (!tickers.value.length) {
@@ -94,9 +111,15 @@ watch ( tickers, () => {
 const tickerData = localStorage.getItem ('cryptonomicon-list');
 if (tickerData) {
   tickers.value = JSON.parse(tickerData);
+  tickers.value.forEach (t => {
+    subscribeToTicker(t.name, (newPrice)=>{
+      console.log('price=', newPrice, t.name);
+      updateTicker(t.name, newPrice);
+    });
+  });
 };
 
-setInterval(updateTicker, 5000);
+//setInterval(updateTicker, 5000);
 
 
                                                                       //АВТОКОМПЛИТ
@@ -163,9 +186,10 @@ const maxValue = Math.max(...graph.value);
   );
 });
 
-//ФИЛЬТР
+                                                                      //ФИЛЬТР
 
 //вывод тикеров при изменении фильтра
+const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
 const tickerFilter = ref(""); //для получения фильтра(инпут)
 
 const filteredTicker = computed (()=> tickers.value.filter((elem) => elem.name.includes(tickerFilter.value.toUpperCase())));
