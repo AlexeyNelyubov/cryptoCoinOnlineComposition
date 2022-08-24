@@ -113,7 +113,6 @@ if (tickerData) {
   tickers.value = JSON.parse(tickerData);
   tickers.value.forEach (t => {
     subscribeToTicker(t.name, (newPrice)=>{
-      console.log('price=', newPrice, t.name);
       updateTicker(t.name, newPrice);
     });
   });
