@@ -4,13 +4,17 @@ const socket = new WebSocket (`wss://streamer.cryptocompare.com/v2?api_key=${API
 const AGGRIGATE_INDEX = 5;
 //socket.close();
 socket.onmessage = function(e) {
-        if (e.TYPE = AGGRIGATE_INDEX) {
-            const a = JSON.parse(e.data);
-            if (a.PRICE===undefined) {
+    const parsedMassage = JSON.parse(e.data);
+    if (parsedMassage.TYPE == 500) {
+        const handlers1 = tickersHandler.get (parsedMassage.PARAMETER.split('~')[2]);
+                handlers1.forEach(fn => fn(false));
+    };
+        if (parsedMassage.TYPE == AGGRIGATE_INDEX) {
+            if (parsedMassage.PRICE===undefined) {
                 return;
             };
-            const handlers1 = tickersHandler.get (a.FROMSYMBOL);
-                handlers1.forEach(fn => fn(a.PRICE));
+            const handlers = tickersHandler.get (parsedMassage.FROMSYMBOL);
+                handlers.forEach(fn => fn(parsedMassage.PRICE));
         };
 };
 
@@ -87,7 +91,7 @@ function sendToWS (massage) {
 function subscribeToTickerOnWs (ticker) {
     sendToWS ({
         "action": "SubAdd",
-        "subs": [`5~CCCAGG~${ticker}~USD`]
+        "subs": [`5~CCCAGG~${ticker}~USDT`]
     });
 };
 
@@ -100,7 +104,7 @@ export const subscribeToTicker = (ticker, cb) => {
 function unsubscribeFromTickerOnWs (ticker) {
     sendToWS ({
         "action": "SubRemove",
-        "subs": [`5~CCCAGG~${ticker}~USD`]
+        "subs": [`5~CCCAGG~${ticker}~USDT`]
     });
 };
 

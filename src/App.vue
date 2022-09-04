@@ -5,7 +5,7 @@ import { onMounted, reactive, ref, watch, watchEffect } from "vue";
 import {subscribeToTicker} from "./api";
 import {unsubscribeFromTicker} from "./api";
 
-
+const maxGraphElement = ref(38);
 //const windowData = Object.fromEntries(new URL (window.location).searchParams.entries());
 //const q = Object.fromEntries(new URL (window.location).searchParams);
 //console.log(q);
@@ -16,11 +16,14 @@ import {unsubscribeFromTicker} from "./api";
 //показ на странице введённого тикера(+полученная цена)
 const ticker = ref("");//вводимый тикер
 const tickers = ref([]);//массив тикеров
+const graphElement = ref(null);
+const graphField = ref(null);
 
 function callback() {
 const currentTicker = reactive ({
     name: ticker.value.toUpperCase(),
     price: " - ",
+    validPrice: true
   });
   
   tickers.value = [...tickers.value, currentTicker];
@@ -34,12 +37,49 @@ const currentTicker = reactive ({
 };
 
 function updateTicker (tickerName, price) {
+  if (price === false) {
+    tickers.value.filter(t => t.name === tickerName).forEach(t => {
+    t.validPrice = false;
+    });
+    return;
+  };
   tickers.value.filter(t => t.name === tickerName).forEach(t => {
+    t.validPrice = true;
     t.price = price;
     if (selectedTicker.value?.name === tickerName) {
+      if (graph.value.length >= calculateMaxGraphElement()){
+        graph.value = graph.value.slice((graph.value.length-calculateMaxGraphElement()), graph.value.length+1);
+      };
       graph.value.push (price);
+      //console.log(graphElement.value['0'].clientWidth);
+      //console.log(Math.floor(graphField.value.clientWidth/graphElement.value['0'].clientWidth));
+      //console.log(graph.value.length);
     };
   });
+};
+
+function calculateMaxGraphElement(){ 
+  if (!graphField.value) {
+    return;
+  };
+return Math.floor(graphField.value.clientWidth/maxGraphElement.value-1);
+};
+
+
+ onMounted(() => {
+   window.addEventListener('resize', ()=> {
+    if (graph.value.length >= calculateMaxGraphElement()){
+        graph.value = graph.value.slice((graph.value.length-calculateMaxGraphElement()), graph.value.length+1);
+      };
+   });
+ });
+
+function formatePrice(price) {
+      if (price == " - " ) {
+        return price;
+      };
+      const priceType = Number(price);
+      return priceType>1 ? priceType.toFixed(2) : priceType.toPrecision(2);
 };
 
 //Проверка на совпадение (вывод надписи "Такой тикер уже добавлен")
@@ -185,6 +225,8 @@ const maxValue = Math.max(...graph.value);
   );
 });
 
+
+
                                                                       //ФИЛЬТР
 
 //вывод тикеров при изменении фильтра
@@ -327,6 +369,7 @@ if(windowData.page) {
           :key="t"
           :class="{
             'border-4': selectedTicker === t,
+            'bg-red-200': !t.validPrice
           }"
           class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
         >
@@ -335,7 +378,7 @@ if(windowData.page) {
               {{ t.name }} - USD
             </dt>
             <dd class="mt-1 text-3xl font-semibold text-gray-900">
-              {{ t.price }}
+              {{ formatePrice(t.price) }}
             </dd>
           </div>
           <div class="w-full border-t border-gray-200"></div>
@@ -361,15 +404,19 @@ if(windowData.page) {
       </dl>
       <hr v-if="tickers.length" class="w-full border-t border-gray-600 my-4" />
       <section v-if="selectedTicker" class="relative">
-        <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 my-8" ref="graphField">
           {{ selectedTicker.name }} - USD
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
             v-for="(bar, idx) in normalizedGraph"
             :key="idx"
-            :style="{ height: `${bar}%` }"
-            class="bg-purple-800 border w-10 h-24"
+            ref="graphElement"
+            :style="{ 
+              height: `${bar}%`, 
+              width: maxGraphElement
+              }"
+            class="bg-purple-800 border w-10"
           ></div>
         </div>
         <button
