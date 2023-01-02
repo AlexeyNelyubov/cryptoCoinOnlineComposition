@@ -1,11 +1,8 @@
 <template>
   <section>
     <div class="flex">
-      {{ stateGraph.count}}
       <div class="max-w-xs">
-        <label for="wallet" class="block text-sm font-medium text-gray-700"
-          >Тикер
-        </label>
+        <label for="wallet" class="block text-sm font-medium text-gray-700">Тикер </label>
         <div class="mt-1 relative rounded-md shadow-md">
           <input
             v-model="ticker"
@@ -18,10 +15,7 @@
             placeholder="Например DOGE"
           />
         </div>
-        <div
-          v-if="ticker"
-          class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
-        >
+        <div v-if="ticker" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
           <span
             @click="addAutocomplite(tshw)"
             v-for="tshw in tickerShow"
@@ -31,9 +25,7 @@
             {{ tshw }}
           </span>
         </div>
-        <div v-if="tickerCompare" class="text-sm text-red-600">
-          Такой тикер уже добавлен
-        </div>
+        <div v-if="tickerCompare" class="text-sm text-red-600">Такой тикер уже добавлен</div>
       </div>
     </div>
     <add-button @click="add" />
@@ -43,23 +35,19 @@
 <script setup>
 import { ref, onMounted, defineEmits, defineProps } from "vue";
 import AddButton from "./AddButton.vue";
-import {useGraphStore} from "@/stores/changerGraph.js"
-
-const stateGraph = useGraphStore();
 
 const props = defineProps({
-  tickers: { type: Array, required: true, default: {} },
+  tickers: { type: Array, required: true },
 });
 
 const emit = defineEmits(["add-ticker"]);
+
 //получение файла сосписком монет, для автокомплита при вводе тикера
 const dataCoinList = ref([]); //массив для вывода 4х монет при автокомплите
 
 onMounted(() => {
   async function getCoinList() {
-    const fr = await fetch(
-      `https://min-api.cryptocompare.com/data/all/coinlist?summary=true`
-    );
+    const fr = await fetch("https://min-api.cryptocompare.com/data/all/coinlist?summary=true");
     const data = await fr.json();
     return data;
   }
@@ -74,10 +62,10 @@ const tickerCompare = ref(false); //для сравнения есть ли уж
 
 function add() {
   tickerCompare.value = false;
-  if (props.tickers.filter(t => t.name === ticker.value.toUpperCase()).length) {
+  if (props.tickers.filter((t) => t.name === ticker.value.toUpperCase()).length) {
     tickerCompare.value = true;
-      return;
-  };
+    return;
+  }
 
   if (!tickerCompare.value) {
     getTicker();
@@ -100,10 +88,7 @@ function autopComplite() {
   tickerShow.value = [];
   let i = 1;
   for (let key in dataCoinList.value) {
-    if (
-      (i <= 4) &
-      dataCoinList.value[key].Symbol.includes(ticker.value.toUpperCase())
-    ) {
+    if ((i <= 4) & dataCoinList.value[key].Symbol.includes(ticker.value.toUpperCase())) {
       tickerShow.value.push(dataCoinList.value[key].Symbol);
       i++;
     }

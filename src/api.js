@@ -42,7 +42,7 @@
 // //     const URL = `https://min-api.cryptocompare.com/data/pricemulti?${param.toString()}`;
 // //     return fetch(URL)
 // //     . then(f => f.json())
-// //     . then (rawData => 
+// //     . then (rawData =>
 // //          Object.fromEntries(
 // //              Object.entries(rawData).map(([key, value]) => [key, value.USD])
 // //         )
@@ -90,8 +90,6 @@
 //     // );
 // //};
 
-
-
 // function subscribeToTickerOnWs (ticker) {
 //     sendToWS ({
 //         "action": "SubAdd",
@@ -105,27 +103,27 @@
 //     // const worker = new Worker ('./src/worker/worker-api.js', {
 //     //     name:'work12'
 //     // });
-//     // worker.postMessage (ticker); 
+//     // worker.postMessage (ticker);
 //     // worker.onmessage = e => {
 //     //     console.log('api', e.data);
 //     // };
-    
+
 //     // const worker = new Worker ('./src/worker/worker-api.js', {
 //     //     name:'worker'
 //     // });
-//     // worker.postMessage (ticker); 
+//     // worker.postMessage (ticker);
 //     // worker.onmessage = e => {
 //     //     console.log('api', e.data);
 //     // };
 //     // const worker = new SharedWorker ('./src/worker/worker-api.js', {
 //     //     name:'sharedworker'
 //     // });
-//     // worker.port.postMessage (ticker); 
+//     // worker.port.postMessage (ticker);
 //     // worker.port.onmessage = e => {
 //     //     console.log('apishared', e.data);
 //     // };
 //     subscribeToTickerOnWs (ticker);
-// }; 
+// };
 
 // function unsubscribeFromTickerOnWs (ticker) {
 //     sendToWS ({
@@ -137,19 +135,19 @@
 // export const unsubscribeFromTicker = (ticker) => {
 //     tickersHandler.delete (ticker);
 //     unsubscribeFromTickerOnWs (ticker);
-// }; 
-    
+// };
+
 //setInterval ( loadTicker1, 5000 );
 //window.tickers = tickersHandler;
 
-    // export const loadTicker = ((tickerName) => {
-    //     return fetch(
-    //         `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=${API_KEY}`
-    //     ). then(f => f.json())
-    // });
-      
-    // export function loadTicker (tickerName) {
-    //     return fetch(
-    //         `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=${API_KEY}`
-    //     ). then(f => f.json())
-    // };
+// export const loadTicker = ((tickerName) => {
+//     return fetch(
+//         `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=${API_KEY}`
+//     ). then(f => f.json())
+// });
+
+// export function loadTicker (tickerName) {
+//     return fetch(
+//         `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=${API_KEY}`
+//     ). then(f => f.json())
+// };
