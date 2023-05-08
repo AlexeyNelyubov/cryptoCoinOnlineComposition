@@ -35,7 +35,6 @@ worker.port.onmessage = (e) => {
     };
     if (!tickers.value.find((el) => el.name === e.data[0])) {
       tickers.value.push(tickerworker);
-      //tickers.value = [...tickers.value, tickerworker];
     }
   }
   if (!e.data[1]) {
@@ -54,7 +53,6 @@ function getTicker(ticker) {
     validPrice: true,
   };
   tickers.value.push(currentTicker);
-  //tickers.value = [...tickers.value, currentTicker];
   worker.port.postMessage([currentTicker.name, true]);
   workerPrice1.port.postMessage([currentTicker.name, true]);
   workerPrice1.port.onmessage = (e) => {
