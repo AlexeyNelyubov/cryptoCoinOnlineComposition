@@ -1,6 +1,6 @@
 # cryptoCoinOnline
 
-This app allows you to monitor the price of crypto coins online.
+This app allows you to monitor the price of crypto coins online. (CompositionAPI)
 
 ## Project Setup
 
