@@ -12,7 +12,7 @@
             name="wallet"
             id="wallet"
             class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
-            placeholder="Например DOGE"
+            placeholder="Например BTC"
           />
         </div>
         <div v-if="ticker" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">

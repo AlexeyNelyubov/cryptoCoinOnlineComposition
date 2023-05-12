@@ -21,7 +21,8 @@ function handleDelete(tickerToRemove) {
 
 function formatePrice(price) {
   if (price == " - ") {
-    return price;
+    // return price;
+    return "Цена не доступна";
   }
   const priceType = Number(price);
   return priceType > 1 ? priceType.toFixed(2) : priceType.toPrecision(2);
@@ -62,7 +63,10 @@ function chagePaginatededTicker(paginatededTickerFromFilter) {
         >
           <div class="px-4 py-5 sm:p-6 text-center">
             <dt class="text-sm font-medium text-gray-500 truncate">{{ t.name }} - USD</dt>
-            <dd class="mt-1 text-3xl font-semibold text-gray-900">
+            <dd
+              class="mt-1 font-semibold text-gray-900"
+              :class="{ 'text-2xl': !t.validPrice, 'text-3xl': t.validPrice }"
+            >
               {{ formatePrice(t.price) }}
             </dd>
           </div>
